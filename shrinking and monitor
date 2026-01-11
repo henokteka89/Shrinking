@@ -51,3 +51,16 @@ FROM sys.dm_exec_requests req
 LEFT JOIN master.dbo.syslockinfo slf on req_spid = req.session_id and rsc_objid <> 0
 LEFT JOIN sys.indexes ix on slf.rsc_objid = ix.object_id and slf.rsc_indid = ix.index_id
 WHERE  req.command LIKE '%DBCC%' -- IN ('dbccfilescompact', dbccspacereclaim')
+
+-- GET SPACE usage info and reason for not reusing log space
+
+ -- Get log space size and used percentage
+ Drop Table If Exists #loginfo
+ Create table #loginfo (databasename nvarchar(128), logsizeMB real, logspaceusedpct real, status int)
+ Insert into #loginfo (databasename, logsizeMB, logspaceusedpct, status)
+ Exec ('dbcc sqlperf(logspace)') ;
+ Select databasename, logsizeMB, cast(logspaceusedpct as decimal(10,2)) logspaceusedpct, status from #loginfo Order by logsizeMB Desc
+
+ -- Log Reuse reason (not for releasing space) 
+ Select name as DBname, recovery_model_desc, log_reuse_wait_desc [reason_for_not_releasing]
+ From sys.databases where DB_NAME(database_id) = 'DBADashDB';
