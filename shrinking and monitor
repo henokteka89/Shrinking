@@ -39,33 +39,15 @@ END
 -- Monitor on a separate window
 
 SELECT DISTINCT
-    req.session_id, req.start_time, 
-    req.status,
-    req.command,
-    req.cpu_time,
-    req.total_elapsed_time,
-    req.wait_type,
-    req.wait_time,
-    req.last_wait_type,
-    --DB_NAME(snl.resource_database_id) AS dbid,
-    --OBJECT_SCHEMA_NAME(scs.objid, scs.dbid) AS SchemaName,
-    req.percent_complete,
-    OBJECT_NAME(scs.objid, scs.dbid) AS TableName,
-    scs.resource_type,
-    scs.resource_subtype,
-    scs.index_id AS IndexId,
-    scs.lock_mode AS LockMode,
-    scs.request_status AS ReqStatus,
-    ses.login_name,
-    ses.host_name,
-    ses.program_name
+       req.session_id,
+       req.start_time,  
+	   req.command,
+       req.status, --req.cpu_time, req.total_elapsed_time,
+       req.wait_time, req.wait_type,
+       DB_NAME(isnull(rsc_dbid, req.database_id)) AS Dbname, --req.last_wait_type,
+       req.percent_complete,
+	   object_name(rsc_objid, rsc_dbid)  AS Tablename   
 FROM sys.dm_exec_requests req
-INNER JOIN sys.dm_exec_sessions ses
-    ON req.session_id = ses.session_id
-LEFT JOIN sys.dm_tran_locks snl
-    ON req.session_id = snl.request_session_id
-LEFT JOIN master.dbo.syslockinfo scs
-    ON scs.req_spid = req.session_id AND scs.objid <> 0
-LEFT JOIN sys.indexes ind
-    ON scs.rsc_objid = ind.object_id AND scs.rsc_indid = ind.index_id
-WHERE req.command LIKE '%DBCC%' -- or 'UpdateStats' 'DbccCheckDB'
+LEFT JOIN master.dbo.syslockinfo slf on req_spid = req.session_id and rsc_objid <> 0
+LEFT JOIN sys.indexes ix on slf.rsc_objid = ix.object_id and slf.rsc_indid = ix.index_id
+WHERE  req.command LIKE '%DBCC%' -- IN ('dbccfilescompact', dbccspacereclaim')
